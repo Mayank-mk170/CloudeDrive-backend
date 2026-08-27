@@ -9,7 +9,12 @@ import java.time.OffsetDateTime;
 @Getter
 @Setter
 @Entity
-@Table(name = "files")
+@Table(name = "files", indexes = {
+        @Index(name = "idx_files_original_file_name",
+                columnList = "original_file_name"),
+        @Index(name = "idx_files_user_id",
+                columnList = "user_id")
+})
 public class File {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

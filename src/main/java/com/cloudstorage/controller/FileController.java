@@ -142,4 +142,105 @@ public class FileController {
                 user.getEmail()
         );
     }
+
+    // ==========================================
+// SEARCH FILES WITH PAGINATION
+// ==========================================
+
+    @GetMapping("/search")
+    public ResponseEntity<?> searchFiles(
+            @RequestParam String name,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "5") int size
+    ) {
+
+        Object principal =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getPrincipal();
+
+        User user =
+                (User) principal;
+
+        return fileService.searchFiles(
+                name,
+                user.getEmail(),
+                page,
+                size
+        );
+    }
+
+    // ==========================================
+// GET TRASH FILES
+// GET /api/files/trash
+// ==========================================
+
+    @GetMapping("/trash")
+    public ResponseEntity<?> getTrashFiles() {
+
+        Object principal =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getPrincipal();
+
+        User user =
+                (User) principal;
+
+        return fileService.getTrashFiles(
+                user.getEmail()
+        );
+    }
+
+
+// ==========================================
+// RESTORE FILE
+// PUT /api/files/{id}/restore
+// ==========================================
+
+    @PutMapping("/{id}/restore")
+    public ResponseEntity<?> restoreFile(
+            @PathVariable Long id
+    ) {
+
+        Object principal =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getPrincipal();
+
+        User user =
+                (User) principal;
+
+        return fileService.restoreFile(
+                id,
+                user.getEmail()
+        );
+    }
+
+    // ==========================================
+// PERMANENT DELETE FILE
+// DELETE /api/files/{id}/permanent
+// ==========================================
+
+    @DeleteMapping("/{id}/permanent")
+    public ResponseEntity<?> permanentlyDeleteFile(
+            @PathVariable Long id
+    ) {
+
+        Object principal =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getPrincipal();
+
+        User user =
+                (User) principal;
+
+        return fileService.permanentlyDeleteFile(
+                id,
+                user.getEmail()
+        );
+    }
 }

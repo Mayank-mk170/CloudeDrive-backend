@@ -10,11 +10,15 @@ import com.cloudstorage.model.User;
 import com.cloudstorage.repository.FileRepository;
 import com.cloudstorage.repository.UserRepository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -361,6 +365,133 @@ public class FileService {
                 file.getSize(),
                 file.getS3Key(),
                 file.getCreatedAt()
+        );
+    }
+
+// ==========================================
+// SEARCH FILES WITH PAGINATION
+// ==========================================
+
+    public ResponseEntity<?> searchFiles(
+            String name,
+            String userEmail,
+            int page,
+            int size
+    ) {
+
+        Pageable pageable =
+                PageRequest.of(page, size);
+
+        Page<File> files =
+                fileRepository
+                        .findByUserEmailAndOriginalFileNameContainingIgnoreCase(
+                                userEmail,
+                                name,
+                                pageable
+                        );
+
+        Page<FileResponse> response =
+                files.map(file -> new FileResponse(
+                        file.getId(),
+                        file.getOriginalFileName(),
+                        file.getStoredFileName(),
+                        file.getContentType(),
+                        file.getSize(),
+                        file.getS3Key(),
+                        file.getCreatedAt()
+                ));
+
+        return ResponseEntity.ok(response);
+    }
+
+    // ==========================================
+// GET TRASH FILES
+// ==========================================
+    public ResponseEntity<?> getTrashFiles(
+            String userEmail
+    ) {
+
+        List<File> files =
+                fileRepository.findByUserEmailAndDeletedTrue(
+                        userEmail
+                );
+        if (files.isEmpty()) {
+
+            return ResponseEntity
+                    .ok("Nothing in the trash");
+        }
+
+        return ResponseEntity.ok(files);
+    }
+
+
+// ==========================================
+// RESTORE FILE FROM TRASH
+// ==========================================
+
+    public ResponseEntity<?> restoreFile(
+            Long fileId,
+            String userEmail
+    ) {
+
+        Optional<File> optionalFile =
+                fileRepository.findByIdAndUserEmailAndDeletedTrue(
+                        fileId,
+                        userEmail
+                );
+
+        if (optionalFile.isEmpty()) {
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body("File not found in trash");
+        }
+
+        File file = optionalFile.get();
+
+        file.setDeleted(false);
+
+                fileRepository.save(file);
+
+        return ResponseEntity.ok(
+                "File restored successfully"
+        );
+    }
+
+    // ==========================================
+// PERMANENTLY DELETE FILE
+// ==========================================
+
+    public ResponseEntity<?> permanentlyDeleteFile(
+            Long fileId,
+            String userEmail
+    ) {
+
+        Optional<File> optionalFile =
+                fileRepository.findByIdAndUserEmailAndDeletedTrue(
+                        fileId,
+                        userEmail
+                );
+
+        if (optionalFile.isEmpty()) {
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body("File not found in trash");
+        }
+
+        File file = optionalFile.get();
+
+        // Delete from S3
+        s3Service.deleteFile(
+                file.getS3Key()
+        );
+
+        // Delete from database
+        fileRepository.delete(file);
+
+        return ResponseEntity.ok(
+                "File permanently deleted"
         );
     }
 }
