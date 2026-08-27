@@ -90,39 +90,154 @@ public class JWTFilter extends OncePerRequestFilter {
 //        }
 //
 //        filterChain.doFilter(request, response);
-@Override
-protected void doFilterInternal(
-        HttpServletRequest request,
-        HttpServletResponse response,
-        FilterChain filterChain
-) throws ServletException, IOException {
 
-    String authorization =
-            request.getHeader("Authorization");
 
-    if (authorization != null
-            && authorization.startsWith("Bearer ")) {
+
+//@Override
+//protected void doFilterInternal(
+//        HttpServletRequest request,
+//        HttpServletResponse response,
+//        FilterChain filterChain
+//) throws ServletException, IOException {
+//
+//    String authorization =
+//            request.getHeader("Authorization");
+//
+//    if (authorization != null
+//            && authorization.startsWith("Bearer ")) {
+//
+//        String token =
+//                authorization.substring(7);
+//
+//        try {
+//
+//            String email =
+//                    jwtService.getEmail(token);
+//
+//            System.out.println("JWT EMAIL = " + email);
+//
+//            Optional<User> optionalUser =
+//                    userRepository.findByEmail(email);
+//
+//            System.out.println(
+//                    "USER FOUND = " + optionalUser.isPresent()
+//            );
+//
+//            if (optionalUser.isPresent()) {
+//
+//                User user = optionalUser.get();
+//
+//                UsernamePasswordAuthenticationToken authentication =
+//                        new UsernamePasswordAuthenticationToken(
+//                                user,
+//                                null,
+//                                Collections.emptyList()
+//                        );
+//
+//                authentication.setDetails(
+//                        new WebAuthenticationDetailsSource()
+//                                .buildDetails(request)
+//                );
+//
+//                SecurityContextHolder
+//                        .getContext()
+//                        .setAuthentication(authentication);
+//
+//                System.out.println(
+//                        "AUTHENTICATION SET = "
+//                                + SecurityContextHolder
+//                                .getContext()
+//                                .getAuthentication()
+//                );
+//            }
+//
+//        } catch (Exception e) {
+//
+//            System.out.println(
+//                    "JWT ERROR = " + e.getMessage()
+//            );
+//
+//            response.setStatus(
+//                    HttpServletResponse.SC_UNAUTHORIZED
+//            );
+//
+//            return;
+//        }
+//    }
+//
+//    filterChain.doFilter(request, response);
+//    }
+
+
+    @Override
+    protected void doFilterInternal(
+            HttpServletRequest request,
+            HttpServletResponse response,
+            FilterChain filterChain
+    ) throws ServletException, IOException {
+
+        String authorization =
+                request.getHeader("Authorization");
+
+        // ==========================================
+        // NO JWT
+        // ==========================================
+
+        if (authorization == null
+                || !authorization.startsWith("Bearer ")) {
+
+            // Important:
+            // Do NOT return 401 here.
+            //
+            // OAuth2 requests don't have a JWT yet.
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // ==========================================
+        // GET JWT
+        // ==========================================
 
         String token =
                 authorization.substring(7);
 
         try {
 
+            // ==========================================
+            // GET EMAIL FROM JWT
+            // ==========================================
+
             String email =
                     jwtService.getEmail(token);
 
-            System.out.println("JWT EMAIL = " + email);
+            System.out.println(
+                    "JWT EMAIL = " + email
+            );
+
+            // ==========================================
+            // FIND USER
+            // ==========================================
 
             Optional<User> optionalUser =
                     userRepository.findByEmail(email);
 
             System.out.println(
-                    "USER FOUND = " + optionalUser.isPresent()
+                    "USER FOUND = "
+                            + optionalUser.isPresent()
             );
 
-            if (optionalUser.isPresent()) {
+            // ==========================================
+            // SET AUTHENTICATION
+            // ONLY IF NOT ALREADY AUTHENTICATED
+            // ==========================================
 
-                User user = optionalUser.get();
+            if (optionalUser.isPresent()
+                    && SecurityContextHolder
+                    .getContext()
+                    .getAuthentication() == null) {
+
+                User user =
+                        optionalUser.get();
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
@@ -138,7 +253,9 @@ protected void doFilterInternal(
 
                 SecurityContextHolder
                         .getContext()
-                        .setAuthentication(authentication);
+                        .setAuthentication(
+                                authentication
+                        );
 
                 System.out.println(
                         "AUTHENTICATION SET = "
@@ -151,7 +268,8 @@ protected void doFilterInternal(
         } catch (Exception e) {
 
             System.out.println(
-                    "JWT ERROR = " + e.getMessage()
+                    "JWT ERROR = "
+                            + e.getMessage()
             );
 
             response.setStatus(
@@ -160,9 +278,15 @@ protected void doFilterInternal(
 
             return;
         }
-    }
 
-    filterChain.doFilter(request, response);
+        // ==========================================
+        // CONTINUE
+        // ==========================================
+
+        filterChain.doFilter(
+                request,
+                response
+        );
     }
 
 }

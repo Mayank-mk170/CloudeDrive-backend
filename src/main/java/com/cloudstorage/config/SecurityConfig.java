@@ -19,9 +19,11 @@ import java.util.List;
 public class SecurityConfig {
 
     private JWTFilter jwtFilter;
+    private final GoogleOAuth2 googleOAuth2;
 
-    public SecurityConfig(JWTFilter jwtFilter) {
+    public SecurityConfig(JWTFilter jwtFilter, GoogleOAuth2 googleOAuth2) {
         this.jwtFilter = jwtFilter;
+        this.googleOAuth2 = googleOAuth2;
     }
 
     /*
@@ -89,12 +91,27 @@ public class SecurityConfig {
                                 "/api/v1/users/api/auth/login"
                         ).permitAll()
 
+                        // Google OAuth2
+                        .requestMatchers(
+                                "/oauth2/**",
+                                "/login/oauth2/**"
+                        ).permitAll()
+
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/public-links/**"
                         ).permitAll()
 
                         .anyRequest().authenticated()
+                )
+                // ==========================================
+                // GOOGLE OAUTH2 LOGIN
+                // ==========================================
+
+                .oauth2Login(oauth2 -> oauth2
+                        .successHandler(
+                                googleOAuth2
+                        )
                 );
 
         return http.build();

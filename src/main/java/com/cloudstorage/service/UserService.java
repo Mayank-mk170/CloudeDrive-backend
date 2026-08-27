@@ -121,4 +121,45 @@ public class UserService {
                 HttpStatus.NOT_FOUND
         );
     }
+
+    // ==========================================
+// GOOGLE OAUTH2 USER
+// ==========================================
+
+    public User findOrCreateGoogleUser(
+            String name,
+            String email,
+            String providerId
+    ) {
+
+        // Check whether user already exists
+        Optional<User> optionalUser =
+                userRepository.findByEmail(email);
+
+        if (optionalUser.isPresent()) {
+
+            User existingUser =
+                    optionalUser.get();
+
+            // Update Google information if necessary
+            existingUser.setProvider("GOOGLE");
+            existingUser.setProviderId(providerId);
+
+            return userRepository.save(existingUser);
+        }
+
+        // Create new Google user
+        User user = new User();
+
+        user.setName(name);
+        user.setEmail(email);
+
+        // Google users don't have an application password
+        user.setPassword(null);
+
+        user.setProvider("GOOGLE");
+        user.setProviderId(providerId);
+
+        return userRepository.save(user);
+    }
 }
