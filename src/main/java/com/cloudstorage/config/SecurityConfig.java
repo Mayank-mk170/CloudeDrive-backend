@@ -22,13 +22,15 @@ public class SecurityConfig {
 
     private final JWTFilter jwtFilter;
     private final GoogleOAuth2 googleOAuth2;
+    private final RateLimitFilter rateLimitFilter;
 
     public SecurityConfig(
             JWTFilter jwtFilter,
-            GoogleOAuth2 googleOAuth2
+            GoogleOAuth2 googleOAuth2, RateLimitFilter rateLimitFilter
     ) {
         this.jwtFilter = jwtFilter;
         this.googleOAuth2 = googleOAuth2;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
     @Bean
@@ -60,6 +62,10 @@ public class SecurityConfig {
                 // JWT FILTER
                 // ==========================================
 
+                .addFilterBefore(
+                        rateLimitFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                )
                 .addFilterBefore(
                         jwtFilter,
                         UsernamePasswordAuthenticationFilter.class
