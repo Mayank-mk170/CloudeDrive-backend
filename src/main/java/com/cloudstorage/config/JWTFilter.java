@@ -1,5 +1,6 @@
 package com.cloudstorage.config;
 
+import com.cloudstorage.model.Role;
 import com.cloudstorage.model.User;
 import com.cloudstorage.repository.UserRepository;
 import com.cloudstorage.service.JWTService;
@@ -8,6 +9,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -16,6 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 
 @Component
@@ -186,16 +189,12 @@ public class JWTFilter extends OncePerRequestFilter {
         if (authorization == null
                 || !authorization.startsWith("Bearer ")) {
 
-            // Important:
-            // Do NOT return 401 here.
-            //
-            // OAuth2 requests don't have a JWT yet.
             filterChain.doFilter(request, response);
             return;
         }
 
         // ==========================================
-        // GET JWT
+        // GET TOKEN
         // ==========================================
 
         String token =
@@ -221,49 +220,66 @@ public class JWTFilter extends OncePerRequestFilter {
             Optional<User> optionalUser =
                     userRepository.findByEmail(email);
 
+            if (optionalUser.isEmpty()) {
+
+                response.setStatus(
+                        HttpServletResponse.SC_UNAUTHORIZED
+                );
+
+                return;
+            }
+
+            User user =
+                    optionalUser.get();
+
+            // ==========================================
+            // GET ROLE
+            // ==========================================
+
+            String role =
+                    user.getRole().name();
+
             System.out.println(
-                    "USER FOUND = "
-                            + optionalUser.isPresent()
+                    "USER ROLE = " + role
             );
 
             // ==========================================
-            // SET AUTHENTICATION
-            // ONLY IF NOT ALREADY AUTHENTICATED
+            // CREATE AUTHORITY
             // ==========================================
 
-            if (optionalUser.isPresent()
-                    && SecurityContextHolder
+            SimpleGrantedAuthority authority =
+                    new SimpleGrantedAuthority(
+                            "ROLE_" + role
+                    );
+
+            // ==========================================
+            // CREATE AUTHENTICATION
+            // ==========================================
+
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            user,
+                            null,
+                            Collections.singletonList(authority)
+                    );
+
+            authentication.setDetails(
+                    new WebAuthenticationDetailsSource()
+                            .buildDetails(request)
+            );
+
+            // ==========================================
+            // SET SECURITY CONTEXT
+            // ==========================================
+
+            SecurityContextHolder
                     .getContext()
-                    .getAuthentication() == null) {
+                    .setAuthentication(authentication);
 
-                User user =
-                        optionalUser.get();
-
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                user,
-                                null,
-                                Collections.emptyList()
-                        );
-
-                authentication.setDetails(
-                        new WebAuthenticationDetailsSource()
-                                .buildDetails(request)
-                );
-
-                SecurityContextHolder
-                        .getContext()
-                        .setAuthentication(
-                                authentication
-                        );
-
-                System.out.println(
-                        "AUTHENTICATION SET = "
-                                + SecurityContextHolder
-                                .getContext()
-                                .getAuthentication()
-                );
-            }
+            System.out.println(
+                    "AUTHENTICATION SET = "
+                            + authentication
+            );
 
         } catch (Exception e) {
 
@@ -280,7 +296,7 @@ public class JWTFilter extends OncePerRequestFilter {
         }
 
         // ==========================================
-        // CONTINUE
+        // CONTINUE REQUEST
         // ==========================================
 
         filterChain.doFilter(

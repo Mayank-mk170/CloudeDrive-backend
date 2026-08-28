@@ -3,6 +3,7 @@ package com.cloudstorage.service;
 
 import com.cloudstorage.dto.LoginRequest;
 import com.cloudstorage.dto.RegisterRequest;
+import com.cloudstorage.model.Role;
 import com.cloudstorage.model.User;
 import com.cloudstorage.repository.UserRepository;
 import org.springframework.http.HttpStatus;
@@ -41,6 +42,7 @@ public class UserService {
         User user = new User();
         user.setName(registerRequest.name());
         user.setEmail(registerRequest.email());
+        user.setRole(Role.USER);
 
         // Encrypt password
         String encryptedPassword = BCrypt.hashpw(
@@ -58,8 +60,7 @@ public class UserService {
 
     // Login
 
-    public String verifyLogin(
-            LoginRequest loginRequest){
+    public String verifyLogin(LoginRequest loginRequest){
 
         Optional<User> opUser = userRepository.findByEmail(
                 loginRequest.email()
@@ -67,6 +68,10 @@ public class UserService {
         if (opUser.isPresent()) {
 
             User user = opUser.get();
+
+            if(user.getPassword()== null){
+                return null;
+            }
 
 
             boolean passwordMatches =
@@ -80,12 +85,8 @@ public class UserService {
 
                 // Generate JWT
 
-                String token =
-                        jwtService.generateToken(
-                                user.getEmail()
-                        );
+                return jwtService.generateToken(user.getEmail());
 
-                return token;
             }
         }
 
@@ -145,6 +146,15 @@ public class UserService {
             existingUser.setProvider("GOOGLE");
             existingUser.setProviderId(providerId);
 
+            // If existing user doesn't have a role,
+            // give them the default USER role.
+            if (existingUser.getRole() == null) {
+
+                existingUser.setRole(
+                        Role.USER
+                );
+            }
+
             return userRepository.save(existingUser);
         }
 
@@ -159,6 +169,8 @@ public class UserService {
 
         user.setProvider("GOOGLE");
         user.setProviderId(providerId);
+
+        user.setRole(Role.USER);
 
         return userRepository.save(user);
     }

@@ -1,64 +1,35 @@
 package com.cloudstorage.config;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import org.springframework.http.HttpMethod;
+
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
 
-
 @Configuration
 public class SecurityConfig {
 
-    private JWTFilter jwtFilter;
+    private final JWTFilter jwtFilter;
     private final GoogleOAuth2 googleOAuth2;
 
-    public SecurityConfig(JWTFilter jwtFilter, GoogleOAuth2 googleOAuth2) {
+    public SecurityConfig(
+            JWTFilter jwtFilter,
+            GoogleOAuth2 googleOAuth2
+    ) {
         this.jwtFilter = jwtFilter;
         this.googleOAuth2 = googleOAuth2;
     }
-
-    /*
-    @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http
-    ) throws Exception {
-
-        // Disable CSRF
-        http.csrf(csrf -> csrf.disable());
-
-        // Disable CORS
-        http.cors(cors -> cors.disable());
-
-        // Add JWT filter
-        http.addFilterBefore(
-                jwtFilter,
-                AuthorizationFilter.class
-        );
-
-        // Authorization rules
-        http.authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                        "/api/v1/users/api/auth/register",
-                        "/api/v1/users/api/auth/login"
-                )
-                .permitAll()
-                .anyRequest()
-                .authenticated()
-        );
-
-        return http.build();
-    }
-
-     */
 
     @Bean
     public SecurityFilterChain securityFilterChain(
@@ -66,7 +37,17 @@ public class SecurityConfig {
     ) throws Exception {
 
         http
+
+                // ==========================================
+                // CSRF
+                // ==========================================
+
                 .csrf(csrf -> csrf.disable())
+
+
+                // ==========================================
+                // CORS
+                // ==========================================
 
                 .cors(cors ->
                         cors.configurationSource(
@@ -74,48 +55,119 @@ public class SecurityConfig {
                         )
                 )
 
+
+                // ==========================================
+                // JWT FILTER
+                // ==========================================
+
                 .addFilterBefore(
                         jwtFilter,
                         UsernamePasswordAuthenticationFilter.class
                 )
 
+
+                // ==========================================
+                // AUTHORIZATION
+                // ==========================================
+
                 .authorizeHttpRequests(auth -> auth
 
+                        // CORS preflight
                         .requestMatchers(
                                 HttpMethod.OPTIONS,
                                 "/**"
                         ).permitAll()
+
+
+                        // ==================================
+                        // NORMAL AUTHENTICATION
+                        // ==================================
 
                         .requestMatchers(
                                 "/api/v1/users/api/auth/register",
                                 "/api/v1/users/api/auth/login"
                         ).permitAll()
 
-                        // Google OAuth2
+
+                        // ==================================
+                        // GOOGLE OAUTH2
+                        // ==================================
+
                         .requestMatchers(
                                 "/oauth2/**",
                                 "/login/oauth2/**"
                         ).permitAll()
+
+
+                        // ==================================
+                        // PUBLIC LINKS
+                        // ==================================
 
                         .requestMatchers(
                                 HttpMethod.GET,
                                 "/api/public-links/**"
                         ).permitAll()
 
+
+                        // ==================================
+                        // ADMIN ONLY
+                        // ==================================
+
+                        .requestMatchers(
+                                "/api/admin/**"
+                        ).hasRole("ADMIN")
+
+
+                        // ==================================
+                        // EVERYTHING ELSE
+                        // ==================================
+
                         .anyRequest().authenticated()
                 )
+
+
+                // ==========================================
+                // EXCEPTION HANDLING
+                // ==========================================
+
+                .exceptionHandling(exception ->
+
+                        exception.authenticationEntryPoint(
+                                (request, response, authException) -> {
+
+                                    response.setStatus(
+                                            HttpServletResponse.SC_UNAUTHORIZED
+                                    );
+
+                                    response.setContentType(
+                                            "application/json"
+                                    );
+
+                                    response.getWriter().write(
+                                            "{\"error\":\"Unauthorized\"}"
+                                    );
+                                }
+                        )
+                )
+
+
                 // ==========================================
                 // GOOGLE OAUTH2 LOGIN
                 // ==========================================
 
-                .oauth2Login(oauth2 -> oauth2
-                        .successHandler(
+                .oauth2Login(oauth2 ->
+                        oauth2.successHandler(
                                 googleOAuth2
                         )
                 );
 
         return http.build();
     }
+
+
+    // ==========================================
+    // CORS CONFIGURATION
+    // ==========================================
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
@@ -124,7 +176,9 @@ public class SecurityConfig {
                 new CorsConfiguration();
 
         configuration.setAllowedOriginPatterns(
-                List.of("http://localhost:*")
+                List.of(
+                        "http://localhost:*"
+                )
         );
 
         configuration.setAllowedMethods(
@@ -133,6 +187,7 @@ public class SecurityConfig {
                         "POST",
                         "PUT",
                         "DELETE",
+                        "PATCH",
                         "OPTIONS"
                 )
         );
