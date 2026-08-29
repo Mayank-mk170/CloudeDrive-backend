@@ -60,20 +60,43 @@ public class JWTService {
     private String issuer;
 
     @Value("${jwt.expiry.duration}")
-    private int expiryTime;
+    private long expiryTime;
 
     private Algorithm algorithm;
 
     @PostConstruct
     public void postConstruct() throws UnsupportedEncodingException {
+
+        if (algorithmKey == null || algorithmKey.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT_ALGORITHM_KEY is missing"
+            );
+        }
+
+        if (issuer == null || issuer.isBlank()) {
+            throw new IllegalStateException(
+                    "JWT_ISSUER is missing"
+            );
+        }
+
         algorithm = Algorithm.HMAC256(algorithmKey);
+
+        System.out.println("=================================");
+        System.out.println("JWT SERVICE INITIALIZED");
+        System.out.println("JWT ISSUER = " + issuer);
+        System.out.println("JWT KEY PRESENT = true");
+        System.out.println("JWT EXPIRY = " + expiryTime);
+        System.out.println("=================================");
     }
 
-    // Generate JWT
+    // ==========================================
+    // GENERATE TOKEN
+    // ==========================================
+
     public String generateToken(String email) {
 
         return JWT.create()
-                .withClaim("name", email)
+                .withClaim("email", email)
                 .withExpiresAt(
                         new Date(
                                 System.currentTimeMillis()
@@ -84,7 +107,10 @@ public class JWTService {
                 .sign(algorithm);
     }
 
-    // Get email from JWT
+    // ==========================================
+    // GET EMAIL FROM TOKEN
+    // ==========================================
+
     public String getEmail(String token) {
 
         DecodedJWT decodedJWT =
@@ -94,7 +120,7 @@ public class JWTService {
                         .verify(token);
 
         return decodedJWT
-                .getClaim("name")
+                .getClaim("email")
                 .asString();
     }
 }
