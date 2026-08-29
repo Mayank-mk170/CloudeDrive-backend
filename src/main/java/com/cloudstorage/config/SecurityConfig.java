@@ -4,7 +4,6 @@ import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
 import org.springframework.http.HttpMethod;
 
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -26,7 +25,8 @@ public class SecurityConfig {
 
     public SecurityConfig(
             JWTFilter jwtFilter,
-            GoogleOAuth2 googleOAuth2, RateLimitFilter rateLimitFilter
+            GoogleOAuth2 googleOAuth2,
+            RateLimitFilter rateLimitFilter
     ) {
         this.jwtFilter = jwtFilter;
         this.googleOAuth2 = googleOAuth2;
@@ -59,35 +59,38 @@ public class SecurityConfig {
 
 
                 // ==========================================
-                // JWT FILTER
-                // ==========================================
-
-                .addFilterBefore(
-                        rateLimitFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                )
-                .addFilterBefore(
-                        jwtFilter,
-                        UsernamePasswordAuthenticationFilter.class
-                )
-
-
-                // ==========================================
                 // AUTHORIZATION
                 // ==========================================
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // CORS preflight
+                        // ----------------------------------
+                        // CORS PRE-FLIGHT
+                        // ----------------------------------
+
                         .requestMatchers(
                                 HttpMethod.OPTIONS,
                                 "/**"
                         ).permitAll()
 
 
-                        // ==================================
+                        // ----------------------------------
+                        // SWAGGER / OPENAPI
+                        // ----------------------------------
+
+                        .requestMatchers(
+                                "/v3/api-docs",
+                                "/v3/api-docs/**",
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/swagger-resources/**",
+                                "/webjars/**"
+                        ).permitAll()
+
+
+                        // ----------------------------------
                         // NORMAL AUTHENTICATION
-                        // ==================================
+                        // ----------------------------------
 
                         .requestMatchers(
                                 "/api/v1/users/api/auth/register",
@@ -95,25 +98,19 @@ public class SecurityConfig {
                         ).permitAll()
 
 
-                        // ==================================
+                        // ----------------------------------
                         // GOOGLE OAUTH2
-                        // ==================================
+                        // ----------------------------------
 
                         .requestMatchers(
                                 "/oauth2/**",
                                 "/login/oauth2/**"
                         ).permitAll()
 
-                        // Swagger / OpenAPI
-                        .requestMatchers(
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/v3/api-docs/**"
-                        ).permitAll()
 
-                        // ==================================
+                        // ----------------------------------
                         // PUBLIC LINKS
-                        // ==================================
+                        // ----------------------------------
 
                         .requestMatchers(
                                 HttpMethod.GET,
@@ -121,18 +118,18 @@ public class SecurityConfig {
                         ).permitAll()
 
 
-                        // ==================================
-                        // ADMIN ONLY
-                        // ==================================
+                        // ----------------------------------
+                        // ADMIN
+                        // ----------------------------------
 
                         .requestMatchers(
                                 "/api/admin/**"
                         ).hasRole("ADMIN")
 
 
-                        // ==================================
+                        // ----------------------------------
                         // EVERYTHING ELSE
-                        // ==================================
+                        // ----------------------------------
 
                         .anyRequest().authenticated()
                 )
@@ -143,7 +140,6 @@ public class SecurityConfig {
                 // ==========================================
 
                 .exceptionHandling(exception ->
-
                         exception.authenticationEntryPoint(
                                 (request, response, authException) -> {
 
@@ -171,6 +167,26 @@ public class SecurityConfig {
                         oauth2.successHandler(
                                 googleOAuth2
                         )
+                )
+
+
+                // ==========================================
+                // RATE LIMIT FILTER
+                // ==========================================
+
+                .addFilterBefore(
+                        rateLimitFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                )
+
+
+                // ==========================================
+                // JWT FILTER
+                // ==========================================
+
+                .addFilterBefore(
+                        jwtFilter,
+                        UsernamePasswordAuthenticationFilter.class
                 );
 
         return http.build();
@@ -189,7 +205,8 @@ public class SecurityConfig {
 
         configuration.setAllowedOriginPatterns(
                 List.of(
-                        "http://localhost:*"
+                        "http://localhost:*",
+                        "https://*.railway.app"
                 )
         );
 
