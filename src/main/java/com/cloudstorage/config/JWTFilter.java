@@ -172,6 +172,185 @@ public class JWTFilter extends OncePerRequestFilter {
 //    }
 
 
+//    @Override
+//    protected void doFilterInternal(
+//            HttpServletRequest request,
+//            HttpServletResponse response,
+//            FilterChain filterChain
+//    ) throws ServletException, IOException {
+//
+//        String authorization =
+//                request.getHeader("Authorization");
+//
+//        // ==========================================
+//        // NO JWT
+//        // ==========================================
+//
+//        if (authorization == null
+//                || !authorization.startsWith("Bearer ")) {
+//
+//            filterChain.doFilter(request, response);
+//            return;
+//        }
+//
+//        // ==========================================
+//        // GET TOKEN
+//        // ==========================================
+//
+//        String token =
+//                authorization.substring(7);
+//
+//        try {
+//
+//            // ==========================================
+//            // GET EMAIL FROM JWT
+//            // ==========================================
+//
+//            String email =
+//                    jwtService.getEmail(token);
+//
+//            System.out.println(
+//                    "JWT EMAIL = " + email
+//            );
+//
+//            // ==========================================
+//            // FIND USER
+//            // ==========================================
+//
+//            Optional<User> optionalUser =
+//                    userRepository.findByEmail(email);
+//
+//            if (optionalUser.isEmpty()) {
+//
+//                response.setStatus(
+//                        HttpServletResponse.SC_UNAUTHORIZED
+//                );
+//
+//                return;
+//            }
+//
+//            User user =
+//                    optionalUser.get();
+//
+//            // ==========================================
+//            // GET ROLE
+//            // ==========================================
+//
+//            String role =
+//                    user.getRole().name();
+//
+//            System.out.println(
+//                    "USER ROLE = " + role
+//            );
+//
+//            // ==========================================
+//            // CREATE AUTHORITY
+//            // ==========================================
+//
+//            SimpleGrantedAuthority authority =
+//                    new SimpleGrantedAuthority(
+//                            "ROLE_" + role
+//                    );
+//
+//            // ==========================================
+//            // CREATE AUTHENTICATION
+//            // ==========================================
+//
+//            UsernamePasswordAuthenticationToken authentication =
+//                    new UsernamePasswordAuthenticationToken(
+//                            user,
+//                            null,
+//                            Collections.singletonList(authority)
+//                    );
+//
+//            authentication.setDetails(
+//                    new WebAuthenticationDetailsSource()
+//                            .buildDetails(request)
+//            );
+//
+//            // ==========================================
+//            // SET SECURITY CONTEXT
+//            // ==========================================
+//
+//            SecurityContextHolder
+//                    .getContext()
+//                    .setAuthentication(authentication);
+//
+//            System.out.println(
+//                    "AUTHENTICATION SET = "
+//                            + authentication
+//            );
+//
+//        } catch (Exception e) {
+//
+//            System.out.println(
+//                    "JWT ERROR = "
+//                            + e.getMessage()
+//            );
+//
+//            response.setStatus(
+//                    HttpServletResponse.SC_UNAUTHORIZED
+//            );
+//
+//            return;
+//        }
+//
+//        // ==========================================
+//        // CONTINUE REQUEST
+//        // ==========================================
+//
+//        filterChain.doFilter(
+//                request,
+//                response
+//        );
+//    }
+
+
+    // SKIP JWT FOR PUBLIC ENDPOINTS
+    // ==========================================
+
+    @Override
+    protected boolean shouldNotFilter(
+            HttpServletRequest request
+    ) {
+
+        String path = request.getServletPath();
+
+        // Swagger / OpenAPI
+        if (path.startsWith("/swagger-ui")
+                || path.startsWith("/v3/api-docs")
+                || path.equals("/swagger-ui.html")) {
+
+            return true;
+        }
+
+        // Authentication
+        if (path.equals("/api/v1/users/api/auth/register")
+                || path.equals("/api/v1/users/api/auth/login")) {
+
+            return true;
+        }
+
+        // Google OAuth2
+        if (path.startsWith("/oauth2/")
+                || path.startsWith("/login/oauth2/")) {
+
+            return true;
+        }
+
+        // Public links
+        if (path.startsWith("/api/public-links/")) {
+
+            return true;
+        }
+
+        return false;
+    }
+
+    // ==========================================
+    // JWT FILTER
+    // ==========================================
+
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -226,6 +405,14 @@ public class JWTFilter extends OncePerRequestFilter {
                         HttpServletResponse.SC_UNAUTHORIZED
                 );
 
+                response.setContentType(
+                        "application/json"
+                );
+
+                response.getWriter().write(
+                        "{\"error\":\"User not found\"}"
+                );
+
                 return;
             }
 
@@ -233,7 +420,7 @@ public class JWTFilter extends OncePerRequestFilter {
                     optionalUser.get();
 
             // ==========================================
-            // GET ROLE
+            // GET USER ROLE
             // ==========================================
 
             String role =
@@ -290,6 +477,14 @@ public class JWTFilter extends OncePerRequestFilter {
 
             response.setStatus(
                     HttpServletResponse.SC_UNAUTHORIZED
+            );
+
+            response.setContentType(
+                    "application/json"
+            );
+
+            response.getWriter().write(
+                    "{\"error\":\"Invalid or expired token\"}"
             );
 
             return;
