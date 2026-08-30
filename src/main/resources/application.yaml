@@ -3,15 +3,15 @@ spring:
     name: cloudstorage
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/cloudstorage_test
-    username: postgres
-    password: mayank
+    url: jdbc:postgresql://${PGHOST}:${PGPORT}/${PGDATABASE}
+    username: ${PGUSER}
+    password: ${PGPASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
@@ -21,34 +21,28 @@ spring:
       client:
         registration:
           google:
-            client-id: 656429095610-5eip77fub4ia40m4jga0090118s39s1b.apps.googleusercontent.com
-            client-secret: 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5000
+            client-id: ${GOOGLE_CLIENT_ID}
+            client-secret: ${GOOGLE_CLIENT_SECRET}
             scope:
               - openid
               - profile
               - email
 
-  # Optional: removes the Open Session in View warning
-  open-in-view: false
-
-
-server:
-  port: ${PORT:8080}
-
-
 jwt:
   algorithm:
-    key: ${JWT_ALGORITHM_KEY:ajsjfhaurrhueaksgaisgfkas}
+    key: ${JWT_ALGORITHM_KEY}
 
-  issuer: cloudstorage
+  issuer: ${JWT_ISSUER:cloudstorage}
 
   expiry:
-    duration: 86400000
-
+    duration: ${JWT_EXPIRY_DURATION:86400000}
 
 aws:
   s3:
-    bucket-name: cloudstorage24
-    region: ap-south-1
-    access-key: AKIAQ3EGUP4IE74DZ5ZY
-    secret-key: 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
+    bucket-name: ${AWS_S3_BUCKET_NAME}
+    region: ${AWS_S3_REGION}
+    access-key: ${AWS_ACCESS_KEY}
+    secret-key: ${AWS_SECRET_KEY}
+
+server:
+  port: ${PORT:8080}
