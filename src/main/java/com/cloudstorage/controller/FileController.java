@@ -69,6 +69,28 @@ public class FileController {
         );
     }
 
+
+    // ==========================================
+// GET MY FILES
+// GET /api/files
+// ==========================================
+
+    @GetMapping
+    public ResponseEntity<?> getMyFiles() {
+
+        Object principal =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getPrincipal();
+
+        User user =
+                (User) principal;
+
+        return fileService.getMyFiles(
+                user.getEmail()
+        );
+    }
     // ==========================================
 // GET FILE
 // ==========================================
@@ -92,6 +114,30 @@ public class FileController {
         );
     }
 
+    // ==========================================
+// GET FILE PREVIEW URL
+// GET /api/files/{id}/preview
+// ==========================================
+
+    @GetMapping("/{id}/preview")
+    public ResponseEntity<?> previewFile(
+            @PathVariable Long id
+    ) {
+
+        Object principal =
+                SecurityContextHolder
+                        .getContext()
+                        .getAuthentication()
+                        .getPrincipal();
+
+        User user =
+                (User) principal;
+
+        return fileService.generatePreviewUrl(
+                id,
+                user.getEmail()
+        );
+    }
 
 // ==========================================
 // DELETE FILE

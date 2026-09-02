@@ -36,6 +36,18 @@ public class FolderController {
     }
 
 
+    // get root folder
+
+    @GetMapping
+    public ResponseEntity<?> getRootFolders() {
+
+        User user = getCurrentUser();
+
+        return folderService.getRootFolders(
+                user.getEmail()
+        );
+    }
+
     // ==========================================
     // GET FOLDER
     // GET /api/folders/{id}
@@ -49,6 +61,23 @@ public class FolderController {
         User user = getCurrentUser();
 
         return folderService.getFolder(
+                id,
+                user.getEmail()
+        );
+    }
+
+    // GET CHILD FOLDERS
+    // GET /api/folders/{id}/children
+    // ==========================================
+
+    @GetMapping("/{id}/children")
+    public ResponseEntity<?> getChildFolders(
+            @PathVariable Long id
+    ) {
+
+        User user = getCurrentUser();
+
+        return folderService.getChildFolders(
                 id,
                 user.getEmail()
         );

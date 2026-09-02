@@ -75,4 +75,16 @@ public class UserController {
                 HttpStatus.OK
         );
     }
+
+    // Add this to UserController.java
+
+    @GetMapping("/oauth-success")
+    public ResponseEntity<?> oauthSuccess(
+            @RequestParam String token
+    ) {
+        TokenDto tokenDto = new TokenDto();
+        tokenDto.setToken(token);
+        tokenDto.setType("JWT");
+        return new ResponseEntity<>(tokenDto, HttpStatus.OK);
+    }
 }

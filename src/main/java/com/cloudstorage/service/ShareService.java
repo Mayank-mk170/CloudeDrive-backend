@@ -1,6 +1,7 @@
 package com.cloudstorage.service;
 
 import com.cloudstorage.dto.ShareRequest;
+import com.cloudstorage.dto.ShareResponse;
 import com.cloudstorage.model.File;
 import com.cloudstorage.model.Share;
 import com.cloudstorage.model.User;
@@ -13,7 +14,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class ShareService {
@@ -41,7 +44,6 @@ public class ShareService {
             String ownerEmail
     ) {
 
-        // Find owner
         Optional<User> optionalOwner =
                 userRepository.findByEmail(ownerEmail);
 
@@ -55,8 +57,10 @@ public class ShareService {
         User owner =
                 optionalOwner.get();
 
+        // ==========================================
+        // FIND FILE
+        // ==========================================
 
-        // Find file
         Optional<File> optionalFile =
                 fileRepository.findByIdAndUserEmail(
                         request.fileId(),
@@ -73,8 +77,10 @@ public class ShareService {
         File file =
                 optionalFile.get();
 
+        // ==========================================
+        // DON'T SHARE TRASH FILE
+        // ==========================================
 
-        // Don't share files in Trash
         if (file.isDeleted()) {
 
             return ResponseEntity
@@ -82,35 +88,45 @@ public class ShareService {
                     .body("File not found");
         }
 
+        // ==========================================
+        // FIND RECEIVER
+        // ==========================================
 
-        // Find user receiving the share
         Optional<User> optionalSharedUser =
-                userRepository.findById(
-                        request.sharedWithUserId()
+                userRepository.findByEmail(
+                        request.email()
                 );
 
         if (optionalSharedUser.isEmpty()) {
 
             return ResponseEntity
                     .status(HttpStatus.NOT_FOUND)
-                    .body("Shared user not found");
+                    .body(
+                            "User with this email does not exist"
+                    );
         }
 
         User sharedWithUser =
                 optionalSharedUser.get();
 
+        // ==========================================
+        // DON'T SHARE WITH YOURSELF
+        // ==========================================
 
-        // Don't share with yourself
         if (owner.getId()
                 .equals(sharedWithUser.getId())) {
 
             return ResponseEntity
                     .badRequest()
-                    .body("You cannot share a file with yourself");
+                    .body(
+                            "You cannot share a file with yourself"
+                    );
         }
 
+        // ==========================================
+        // CHECK EXISTING SHARE
+        // ==========================================
 
-        // Check existing share
         boolean alreadyShared =
                 shareRepository
                         .existsByFileIdAndSharedWithUserId(
@@ -122,22 +138,33 @@ public class ShareService {
 
             return ResponseEntity
                     .status(HttpStatus.CONFLICT)
-                    .body("File is already shared with this user");
+                    .body(
+                            "File is already shared with this user"
+                    );
         }
 
+        // ==========================================
+        // VALIDATE EXPIRY
+        // ==========================================
 
-        // Validate expiry
-        if (request.expiresAt() != null
-                && request.expiresAt()
-                .isBefore(OffsetDateTime.now())) {
+        if (
+                request.expiresAt() != null
+                        &&
+                        request.expiresAt()
+                                .isBefore(OffsetDateTime.now())
+        ) {
 
             return ResponseEntity
                     .badRequest()
-                    .body("Expiry time must be in the future");
+                    .body(
+                            "Expiry time must be in the future"
+                    );
         }
 
+        // ==========================================
+        // CREATE SHARE
+        // ==========================================
 
-        // Create share
         Share share =
                 new Share();
 
@@ -159,13 +186,128 @@ public class ShareService {
                 OffsetDateTime.now()
         );
 
+        // ==========================================
+        // SAVE
+        // ==========================================
 
         Share savedShare =
                 shareRepository.save(share);
 
-
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(savedShare.getId());
+    }
+
+
+    // ==========================================
+    // GET SHARES CREATED BY ME
+    // ==========================================
+
+    public ResponseEntity<?> getSharesCreatedByMe(
+            String ownerEmail
+    ) {
+
+        Optional<User> optionalUser =
+                userRepository.findByEmail(ownerEmail);
+
+        if (optionalUser.isEmpty()) {
+
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body("User not found");
+        }
+
+        User user =
+                optionalUser.get();
+
+        List<Share> shares =
+                shareRepository
+                        .findByFileUserIdAndFileDeletedFalse(
+                                user.getId()
+                        );
+
+        List<ShareResponse> response =
+                shares.stream()
+                        .map(this::toResponse)
+                        .collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
+    }
+
+
+    // ==========================================
+    // GET FILES SHARED WITH ME
+    // ==========================================
+
+    public ResponseEntity<?> getFilesSharedWithMe(
+            String email
+    ) {
+
+        Optional<User> optionalUser =
+                userRepository.findByEmail(email);
+
+        if (optionalUser.isEmpty()) {
+
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body("User not found");
+        }
+
+        User user =
+                optionalUser.get();
+
+        List<Share> shares =
+                shareRepository
+                        .findBySharedWithUserIdAndFileDeletedFalse(
+                                user.getId()
+                        );
+
+        List<ShareResponse> response =
+                shares.stream()
+                        .map(this::toResponse)
+                        .collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
+    }
+
+
+    // ==========================================
+    // CONVERT SHARE → RESPONSE
+    // ==========================================
+
+    private ShareResponse toResponse(
+            Share share
+    ) {
+
+        File file =
+                share.getFile();
+
+        User sharedWithUser =
+                share.getSharedWithUser();
+
+        return new ShareResponse(
+
+                share.getId(),
+
+                file.getId(),
+
+                file.getOriginalFileName(),
+
+                file.getContentType(),
+
+                file.getSize(),
+
+                file.getS3Key(),
+
+                sharedWithUser.getId(),
+
+                sharedWithUser.getEmail(),
+
+                share.getPermission(),
+
+                share.getExpiresAt(),
+
+                share.getCreatedAt()
+        );
     }
 }

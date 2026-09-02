@@ -13,7 +13,10 @@ import java.time.OffsetDateTime;
         @Index(name = "idx_files_original_file_name",
                 columnList = "original_file_name"),
         @Index(name = "idx_files_user_id",
-                columnList = "user_id")
+                columnList = "user_id"),
+        @Index(name = "idx_files_folder_id",
+                columnList = "folder_id"
+        )
 })
 public class File {
     @Id
@@ -38,6 +41,14 @@ public class File {
     private User user;
 
 
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "folder_id")
+    private Folder folder;
+
+    // ==========================================
+    // TRASH
+    // ==========================================
 
     @Column(nullable = false)
     private boolean deleted = false;

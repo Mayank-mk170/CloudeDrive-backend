@@ -22,21 +22,28 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.cloudstorage.dto.MoveFileRequest;
+import com.cloudstorage.model.Folder;
+import com.cloudstorage.repository.FolderRepository;
+
 @Service
 public class FileService {
 
     private final FileRepository fileRepository;
     private final UserRepository userRepository;
     private final S3Service s3Service;
+    private final FolderRepository folderRepository;
+
 
     public FileService(
             FileRepository fileRepository,
             UserRepository userRepository,
-            S3Service s3Service
+            S3Service s3Service, FolderRepository folderRepository
     ) {
         this.fileRepository = fileRepository;
         this.userRepository = userRepository;
         this.s3Service = s3Service;
+        this.folderRepository = folderRepository;
     }
 
 
@@ -368,6 +375,34 @@ public class FileService {
         );
     }
 
+    // ==========================================
+// GET MY FILES
+// ==========================================
+
+    public ResponseEntity<?> getMyFiles(String userEmail) {
+
+        Optional<User> optionalUser =
+                userRepository.findByEmail(userEmail);
+
+        if (optionalUser.isEmpty()) {
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body("User not found");
+        }
+
+        User user = optionalUser.get();
+
+        List<File> files =
+                fileRepository.findByUserAndDeletedFalse(user);
+
+        List<FileResponse> response =
+                files.stream()
+                        .map(this::toResponse)
+                        .toList();
+
+        return ResponseEntity.ok(response);
+    }
 // ==========================================
 // SEARCH FILES WITH PAGINATION
 // ==========================================
@@ -422,6 +457,47 @@ public class FileService {
         }
 
         return ResponseEntity.ok(files);
+    }
+
+    // ==========================================
+// GENERATE FILE PREVIEW URL
+// ==========================================
+
+    public ResponseEntity<?> generatePreviewUrl(
+            Long fileId,
+            String userEmail
+    ) {
+
+        Optional<File> optionalFile =
+                fileRepository.findByIdAndUserEmail(
+                        fileId,
+                        userEmail
+                );
+
+        if (optionalFile.isEmpty()) {
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body("File not found");
+        }
+
+        File file = optionalFile.get();
+
+        // Don't preview files in Trash
+        if (file.isDeleted()) {
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body("File not found");
+        }
+
+        // Generate temporary S3 GET URL
+        String previewUrl =
+                s3Service.generateDownloadUrl(
+                        file.getS3Key()
+                );
+
+        return ResponseEntity.ok(previewUrl);
     }
 
 

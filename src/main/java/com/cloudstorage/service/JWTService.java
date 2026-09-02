@@ -64,29 +64,55 @@ public class JWTService {
 
     private Algorithm algorithm;
 
-    @PostConstruct
-    public void postConstruct() throws UnsupportedEncodingException {
+    // INITIALIZE JWT
+    // ==========================================
 
-        if (algorithmKey == null || algorithmKey.isBlank()) {
+    @PostConstruct
+    public void postConstruct()
+            throws UnsupportedEncodingException {
+
+        if (algorithmKey == null
+                || algorithmKey.isBlank()) {
+
             throw new IllegalStateException(
                     "JWT_ALGORITHM_KEY is missing"
             );
         }
 
-        if (issuer == null || issuer.isBlank()) {
+        if (issuer == null
+                || issuer.isBlank()) {
+
             throw new IllegalStateException(
                     "JWT_ISSUER is missing"
             );
         }
 
-        algorithm = Algorithm.HMAC256(algorithmKey);
+        algorithm =
+                Algorithm.HMAC256(algorithmKey);
 
-        System.out.println("=================================");
-        System.out.println("JWT SERVICE INITIALIZED");
-        System.out.println("JWT ISSUER = " + issuer);
-        System.out.println("JWT KEY PRESENT = true");
-        System.out.println("JWT EXPIRY = " + expiryTime);
-        System.out.println("=================================");
+        System.out.println(
+                "================================="
+        );
+
+        System.out.println(
+                "JWT SERVICE INITIALIZED"
+        );
+
+        System.out.println(
+                "JWT ISSUER = " + issuer
+        );
+
+        System.out.println(
+                "JWT KEY PRESENT = true"
+        );
+
+        System.out.println(
+                "JWT EXPIRY = " + expiryTime
+        );
+
+        System.out.println(
+                "================================="
+        );
     }
 
     // ==========================================
@@ -96,15 +122,27 @@ public class JWTService {
     public String generateToken(String email) {
 
         return JWT.create()
-                .withClaim("email", email)
+
+                // Current claim
+                .withClaim(
+                        "email",
+                        email
+                )
+
                 .withExpiresAt(
                         new Date(
                                 System.currentTimeMillis()
                                         + expiryTime
                         )
                 )
-                .withIssuer(issuer)
-                .sign(algorithm);
+
+                .withIssuer(
+                        issuer
+                )
+
+                .sign(
+                        algorithm
+                );
     }
 
     // ==========================================
@@ -113,14 +151,56 @@ public class JWTService {
 
     public String getEmail(String token) {
 
+        if (token == null
+                || token.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "JWT token is empty"
+            );
+        }
+
         DecodedJWT decodedJWT =
                 JWT.require(algorithm)
                         .withIssuer(issuer)
                         .build()
                         .verify(token);
 
-        return decodedJWT
-                .getClaim("email")
-                .asString();
+        // ------------------------------------------
+        // CURRENT TOKEN
+        // ------------------------------------------
+
+        String email =
+                decodedJWT
+                        .getClaim("email")
+                        .asString();
+
+        if (email != null
+                && !email.isBlank()) {
+
+            return email;
+        }
+
+        // ------------------------------------------
+        // OLD TOKEN COMPATIBILITY
+        // ------------------------------------------
+
+        String oldEmail =
+                decodedJWT
+                        .getClaim("name")
+                        .asString();
+
+        if (oldEmail != null
+                && !oldEmail.isBlank()) {
+
+            System.out.println(
+                    "JWT USING OLD 'name' CLAIM"
+            );
+
+            return oldEmail;
+        }
+
+        throw new IllegalArgumentException(
+                "JWT email claim is missing"
+        );
     }
 }

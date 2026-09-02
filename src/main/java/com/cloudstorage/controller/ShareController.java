@@ -1,10 +1,7 @@
 package com.cloudstorage.controller;
 
-import com.cloudstorage.dto.ShareRequest;
 import com.cloudstorage.model.User;
 import com.cloudstorage.service.ShareService;
-
-import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -29,8 +26,59 @@ public class ShareController {
 
     @PostMapping
     public ResponseEntity<?> createShare(
-            @Valid @RequestBody ShareRequest request
+            @RequestBody
+            com.cloudstorage.dto.ShareRequest request
     ) {
+
+        User user =
+                getCurrentUser();
+
+        return shareService.createShare(
+                request,
+                user.getEmail()
+        );
+    }
+
+
+    // ==========================================
+    // SHARED BY ME
+    // GET /api/shares/shared-by-me
+    // ==========================================
+
+    @GetMapping("/shared-by-me")
+    public ResponseEntity<?> getSharesCreatedByMe() {
+
+        User user =
+                getCurrentUser();
+
+        return shareService.getSharesCreatedByMe(
+                user.getEmail()
+        );
+    }
+
+
+    // ==========================================
+    // SHARED WITH ME
+    // GET /api/shares/shared-with-me
+    // ==========================================
+
+    @GetMapping("/shared-with-me")
+    public ResponseEntity<?> getFilesSharedWithMe() {
+
+        User user =
+                getCurrentUser();
+
+        return shareService.getFilesSharedWithMe(
+                user.getEmail()
+        );
+    }
+
+
+    // ==========================================
+    // CURRENT USER
+    // ==========================================
+
+    private User getCurrentUser() {
 
         Object principal =
                 SecurityContextHolder
@@ -38,12 +86,6 @@ public class ShareController {
                         .getAuthentication()
                         .getPrincipal();
 
-        User user =
-                (User) principal;
-
-        return shareService.createShare(
-                request,
-                user.getEmail()
-        );
+        return (User) principal;
     }
 }

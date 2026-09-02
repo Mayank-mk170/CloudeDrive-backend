@@ -22,8 +22,8 @@ public record InitUploadRequest(
 
         @NotNull(message = "File size is required")
         @Min(
-                value = 1,
-                message = "File size must be greater than 0"
+                value = 0,
+                message = "File size cannot be negative"
         )
         Long size
 ) {

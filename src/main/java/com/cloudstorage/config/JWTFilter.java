@@ -39,6 +39,28 @@ public class JWTFilter extends OncePerRequestFilter {
             FilterChain filterChain
     ) throws ServletException, IOException {
 
+        // ==========================================
+        // GOOGLE OAUTH2
+        // DO NOT PROCESS GOOGLE REQUESTS WITH JWT
+        // ==========================================
+
+        String path = request.getServletPath();
+
+        if (path.startsWith("/oauth2/")
+                || path.startsWith("/login/oauth2/")) {
+
+            System.out.println(
+                    "JWT FILTER SKIPPED FOR OAUTH2 = " + path
+            );
+
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // ==========================================
+        // GET AUTHORIZATION HEADER
+        // ==========================================
+
         String authorization =
                 request.getHeader("Authorization");
 
