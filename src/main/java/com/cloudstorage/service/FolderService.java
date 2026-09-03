@@ -16,14 +16,19 @@ import java.util.Optional;
 @Service
 public class FolderService {
 
-    private FolderRepository folderRepository;
-    private UserRepository userRepository;
+    private final FolderRepository folderRepository;
+    private final UserRepository userRepository;
 
-    public FolderService(FolderRepository folderRepository, UserRepository userRepository) {
+    public FolderService(
+            FolderRepository folderRepository,
+            UserRepository userRepository
+    ) {
         this.folderRepository = folderRepository;
         this.userRepository = userRepository;
     }
 
+
+    // ==========================================
     // CREATE FOLDER
     // ==========================================
 
@@ -50,10 +55,11 @@ public class FolderService {
         if (request.parentId() != null) {
 
             Optional<Folder> optionalParent =
-                    folderRepository.findByIdAndUserEmail(
-                            request.parentId(),
-                            userEmail
-                    );
+                    folderRepository
+                            .findByIdAndUserEmailAndDeletedFalse(
+                                    request.parentId(),
+                                    userEmail
+                            );
 
             if (optionalParent.isEmpty()) {
 
@@ -66,12 +72,12 @@ public class FolderService {
                     optionalParent.get();
         }
 
-        // Create folder without Lombok builder
         Folder folder = new Folder();
 
-        folder.setName(request.name());
+        folder.setName(request.name().trim());
         folder.setUser(user);
         folder.setParent(parentFolder);
+        folder.setDeleted(false);
 
         Folder savedFolder =
                 folderRepository.save(folder);
@@ -93,7 +99,7 @@ public class FolderService {
 
         Optional<Folder> optionalFolder =
                 folderRepository
-                        .findByIdAndUserEmail(
+                        .findByIdAndUserEmailAndDeletedFalse(
                                 folderId,
                                 userEmail
                         );
@@ -105,11 +111,8 @@ public class FolderService {
                     .body("Folder not found");
         }
 
-        Folder folder =
-                optionalFolder.get();
-
         return ResponseEntity.ok(
-                toResponse(folder)
+                toResponse(optionalFolder.get())
         );
     }
 
@@ -124,7 +127,7 @@ public class FolderService {
 
         List<Folder> folders =
                 folderRepository
-                        .findByUserEmailAndParentIsNullOrderByNameAsc(
+                        .findByUserEmailAndParentIsNullAndDeletedFalseOrderByNameAsc(
                                 userEmail
                         );
 
@@ -146,11 +149,9 @@ public class FolderService {
             String userEmail
     ) {
 
-        // First verify that parent belongs
-        // to the logged-in user
         Optional<Folder> parent =
                 folderRepository
-                        .findByIdAndUserEmail(
+                        .findByIdAndUserEmailAndDeletedFalse(
                                 parentId,
                                 userEmail
                         );
@@ -164,7 +165,7 @@ public class FolderService {
 
         List<Folder> folders =
                 folderRepository
-                        .findByUserEmailAndParentIdOrderByNameAsc(
+                        .findByUserEmailAndParentIdAndDeletedFalseOrderByNameAsc(
                                 userEmail,
                                 parentId
                         );
@@ -175,6 +176,221 @@ public class FolderService {
                         .toList();
 
         return ResponseEntity.ok(response);
+    }
+
+
+    // ==========================================
+    // RENAME FOLDER
+    // ==========================================
+
+    public ResponseEntity<?> renameFolder(
+            Long folderId,
+            String newName,
+            String userEmail
+    ) {
+
+        Optional<Folder> optionalFolder =
+                folderRepository
+                        .findByIdAndUserEmailAndDeletedFalse(
+                                folderId,
+                                userEmail
+                        );
+
+        if (optionalFolder.isEmpty()) {
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body("Folder not found");
+        }
+
+        String name =
+                newName == null
+                        ? ""
+                        : newName.trim();
+
+        if (name.isEmpty()) {
+
+            return ResponseEntity
+                    .badRequest()
+                    .body("Folder name cannot be empty");
+        }
+
+        Folder folder =
+                optionalFolder.get();
+
+        folder.setName(name);
+
+        Folder savedFolder =
+                folderRepository.save(folder);
+
+        return ResponseEntity.ok(
+                toResponse(savedFolder)
+        );
+    }
+
+
+    // ==========================================
+    // MOVE FOLDER TO RECYCLE BIN
+    // ==========================================
+
+    public ResponseEntity<?> deleteFolder(
+            Long folderId,
+            String userEmail
+    ) {
+
+        Optional<Folder> optionalFolder =
+                folderRepository
+                        .findByIdAndUserEmailAndDeletedFalse(
+                                folderId,
+                                userEmail
+                        );
+
+        if (optionalFolder.isEmpty()) {
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body("Folder not found");
+        }
+
+        Folder folder =
+                optionalFolder.get();
+
+        /*
+         * We keep the existing rule:
+         * don't delete a folder that contains
+         * active subfolders.
+         */
+        boolean hasChildren =
+                folderRepository
+                        .existsByParentIdAndUserEmailAndDeletedFalse(
+                                folderId,
+                                userEmail
+                        );
+
+        if (hasChildren) {
+
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(
+                            "Cannot move folder to Recycle bin because it contains subfolders"
+                    );
+        }
+
+        // IMPORTANT:
+        // Do NOT call folderRepository.delete().
+        folder.setDeleted(true);
+
+        folderRepository.save(folder);
+
+        return ResponseEntity.ok(
+                "Folder moved to Recycle bin"
+        );
+    }
+
+
+    // ==========================================
+    // GET RECYCLE BIN FOLDERS
+    // ==========================================
+
+    public ResponseEntity<?> getTrashFolders(
+            String userEmail
+    ) {
+
+        List<Folder> folders =
+                folderRepository
+                        .findByUserEmailAndDeletedTrueOrderByUpdatedAtDesc(
+                                userEmail
+                        );
+
+        List<FolderResponse> response =
+                folders.stream()
+                        .map(this::toResponse)
+                        .toList();
+
+        return ResponseEntity.ok(response);
+    }
+
+
+    // ==========================================
+    // RESTORE FOLDER
+    // ==========================================
+
+    public ResponseEntity<?> restoreFolder(
+            Long folderId,
+            String userEmail
+    ) {
+
+        Optional<Folder> optionalFolder =
+                folderRepository
+                        .findByIdAndUserEmailAndDeletedTrue(
+                                folderId,
+                                userEmail
+                        );
+
+        if (optionalFolder.isEmpty()) {
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body("Folder not found in Recycle bin");
+        }
+
+        Folder folder =
+                optionalFolder.get();
+
+        folder.setDeleted(false);
+
+        folderRepository.save(folder);
+
+        return ResponseEntity.ok(
+                "Folder restored successfully"
+        );
+    }
+
+
+    // ==========================================
+    // DELETE FOLDER PERMANENTLY
+    // ==========================================
+
+    public ResponseEntity<?> permanentlyDeleteFolder(
+            Long folderId,
+            String userEmail
+    ) {
+
+        Optional<Folder> optionalFolder =
+                folderRepository
+                        .findByIdAndUserEmailAndDeletedTrue(
+                                folderId,
+                                userEmail
+                        );
+
+        if (optionalFolder.isEmpty()) {
+
+            return ResponseEntity
+                    .status(HttpStatus.NOT_FOUND)
+                    .body("Folder not found in Recycle bin");
+        }
+
+        Folder folder =
+                optionalFolder.get();
+
+        try {
+
+            folderRepository.delete(folder);
+
+            folderRepository.flush();
+
+            return ResponseEntity.ok(
+                    "Folder permanently deleted"
+            );
+
+        } catch (Exception e) {
+
+            return ResponseEntity
+                    .status(HttpStatus.CONFLICT)
+                    .body(
+                            "Cannot permanently delete folder because it contains files or related data"
+                    );
+        }
     }
 
 

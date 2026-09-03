@@ -22,13 +22,11 @@ public class Folder {
     private String name;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id",   nullable = false)
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(
-            name = "parent_id"
-    )
+    @JoinColumn(name = "parent_id")
     private Folder parent;
 
     @Column(
@@ -40,6 +38,18 @@ public class Folder {
     @Column(nullable = false)
     private OffsetDateTime updatedAt;
 
+    // ==========================================
+    // TRASH
+    // ==========================================
+
+    @Column(nullable = false)
+    private boolean deleted = false;
+
+
+    // ==========================================
+    // CREATE
+    // ==========================================
+
     @PrePersist
     protected void onCreate() {
 
@@ -50,11 +60,15 @@ public class Folder {
         updatedAt = now;
     }
 
+
+    // ==========================================
+    // UPDATE
+    // ==========================================
+
     @PreUpdate
     protected void onUpdate() {
 
         updatedAt =
                 OffsetDateTime.now();
     }
-
 }
