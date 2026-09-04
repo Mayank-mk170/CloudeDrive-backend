@@ -206,7 +206,7 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(
                 List.of(
                         "http://localhost:*",
-                        "https://*.railway.app",
+                       // "https://*.railway.app",
                         "https://cloudstorage-frontend24-jnacchiqp-mayank-kme2019-2537.vercel.app"
 
                 )
