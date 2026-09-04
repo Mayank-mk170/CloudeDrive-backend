@@ -206,8 +206,10 @@ public class SecurityConfig {
         configuration.setAllowedOriginPatterns(
                 List.of(
                         "http://localhost:*",
+                        "https://*.railway.app",
                         "https://cloudstorage-frontend24.vercel.app",
                         "https://cloudedrive-backend-production.up.railway.app"
+
 
                 )
         );
